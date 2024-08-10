@@ -21,11 +21,10 @@ class UserInput(BaseModel):
     weight_status: str
     health_condition: str
     dietary_preference: str
-    daily_calories: float  # New field
-    diet: str              # New field
+    daily_calories: float  # New field for daily calories
 
 # Function to make predictions based on user input
-def make_predictions(age, gender, weight, height, weight_status, health_condition, dietary_preference, daily_calories, diet):
+def make_predictions(age, gender, weight, height, weight_status, health_condition, dietary_preference, daily_calories):
     # Encode and scale inputs
     try:
         gender = label_encoders['Gender'].transform([gender])[0]
@@ -38,7 +37,6 @@ def make_predictions(age, gender, weight, height, weight_status, health_conditio
             health_condition_encoded = label_encoders['Health Condition'].transform([health_condition])[0]
         
         dietary_preference = label_encoders['Dietary Preference'].transform([dietary_preference])[0]
-        diet_encoded = label_encoders['Diet'].transform([diet])[0]  # Encode the diet field
     except ValueError as e:
         raise HTTPException(status_code=400, detail=f"Encoding error: {str(e)}")
     
@@ -46,8 +44,8 @@ def make_predictions(age, gender, weight, height, weight_status, health_conditio
     scaled_features = scaler.transform(input_data)
     age, weight, height, daily_calories = scaled_features[0]
     
-    X_input = pd.DataFrame([[age, gender, weight, height, weight_status, health_condition_encoded, dietary_preference, daily_calories, diet_encoded]],
-                           columns=['Age', 'Gender', 'Weight', 'Height', 'Weight Status', 'Health Condition', 'Dietary Preference', 'Daily Calories', 'Diet'])
+    X_input = pd.DataFrame([[age, gender, weight, height, weight_status, health_condition_encoded, dietary_preference, daily_calories]],
+                           columns=['Age', 'Gender', 'Weight', 'Height', 'Weight Status', 'Health Condition', 'Dietary Preference', 'Daily Calories'])
     
     # Make predictions
     diet_pred = nb_diet.predict(X_input)[0]
@@ -82,8 +80,7 @@ async def predict(user_input: UserInput):
             user_input.weight_status,
             user_input.health_condition,
             user_input.dietary_preference,
-            user_input.daily_calories,
-            user_input.diet
+            user_input.daily_calories
         )
         return {
             "Recommended Diet": diet,
@@ -100,7 +97,6 @@ valid_weight_statuses = [str(x) for x in label_encoders['Weight Status'].classes
 valid_health_conditions = [str(x) for x in label_encoders['Health Condition'].classes_]
 valid_health_conditions = ['None' if x == 'nan' else x for x in valid_health_conditions]
 valid_dietary_preferences = [str(x) for x in label_encoders['Dietary Preference'].classes_]
-valid_diets = [str(x) for x in label_encoders['Diet'].classes_]
 
 @app.get("/options")
 async def get_options():
@@ -108,8 +104,7 @@ async def get_options():
         "Valid Genders": valid_genders,
         "Valid Weight Statuses": valid_weight_statuses,
         "Valid Health Conditions": valid_health_conditions,
-        "Valid Dietary Preferences": valid_dietary_preferences,
-        "Valid Diets": valid_diets
+        "Valid Dietary Preferences": valid_dietary_preferences
     }
 
 if __name__ == "__main__":
