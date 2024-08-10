@@ -1,7 +1,7 @@
-from fastapi import FastAPI, HTTPException # type: ignore
-from pydantic import BaseModel # type: ignore
-import joblib # type: ignore
-import pandas as pd # type: ignore
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
+import joblib
+import pandas as pd
 
 # Load models and encoders
 nb_diet = joblib.load('nb_diet_model.pkl')
@@ -50,11 +50,20 @@ def make_predictions(age, gender, weight, height, weight_status, health_conditio
     diet_pred = nb_diet.predict(X_input)[0]
     exercise_pred = nb_exercise.predict(X_input)[0]
     
+    # Calculate probabilities
+    diet_probs = nb_diet.predict_proba(X_input)[0]
+    exercise_probs = nb_exercise.predict_proba(X_input)[0]
+    
     # Decode predictions
     diet_pred = label_encoders['Diet'].inverse_transform([diet_pred])[0]
     exercise_pred = label_encoders['Exercise'].inverse_transform([exercise_pred])[0]
     
-    return diet_pred, exercise_pred
+    # Find the probability of the predicted class
+    diet_pred_prob = max(diet_probs)  # Probability of the predicted diet class
+    exercise_pred_prob = max(exercise_probs)  # Probability of the predicted exercise class
+    
+    return diet_pred, exercise_pred, diet_pred_prob, exercise_pred_prob
+
 @app.get("/")
 def read_root():
     return {"Hello": "World"}
@@ -62,7 +71,7 @@ def read_root():
 @app.post("/predict")
 async def predict(user_input: UserInput):
     try:
-        diet, exercise = make_predictions(
+        diet, exercise, diet_prob, exercise_prob = make_predictions(
             user_input.age,
             user_input.gender,
             user_input.weight,
@@ -73,7 +82,9 @@ async def predict(user_input: UserInput):
         )
         return {
             "Recommended Diet": diet,
-            "Recommended Exercise": exercise
+            "Diet Prediction Confidence": diet_prob,
+            "Recommended Exercise": exercise,
+            "Exercise Prediction Confidence": exercise_prob
         }
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
