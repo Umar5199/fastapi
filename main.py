@@ -108,6 +108,7 @@
 # if __name__ == "__main__":
 #     import uvicorn
 #     uvicorn.run(app, host="0.0.0.0", port=8000)
+
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -141,10 +142,9 @@ class UserInput(BaseModel):
     weight_status: str
     health_condition: str
     dietary_preference: str
-    daily_calories: float
 
 # Function to make predictions based on user input
-def make_predictions(age, gender, weight, height, weight_status, health_condition, dietary_preference, daily_calories):
+def make_predictions(age, gender, weight, height, weight_status, health_condition, dietary_preference):
     # Encode and scale inputs
     try:
         gender = label_encoders['Gender'].transform([gender])[0]
@@ -160,12 +160,12 @@ def make_predictions(age, gender, weight, height, weight_status, health_conditio
     except ValueError as e:
         raise HTTPException(status_code=400, detail=f"Encoding error: {str(e)}")
     
-    input_data = pd.DataFrame([[age, weight, height, daily_calories]], columns=['Age', 'Weight', 'Height', 'Daily Calories'])
+    input_data = pd.DataFrame([[age, weight, height]], columns=['Age', 'Weight', 'Height'])
     scaled_features = scaler.transform(input_data)
-    age, weight, height, daily_calories = scaled_features[0]
+    age, weight, height = scaled_features[0]
     
-    X_input = pd.DataFrame([[age, gender, weight, height, weight_status, health_condition_encoded, dietary_preference, daily_calories]],
-                           columns=['Age', 'Gender', 'Weight', 'Height', 'Weight Status', 'Health Condition', 'Dietary Preference', 'Daily Calories'])
+    X_input = pd.DataFrame([[age, gender, weight, height, weight_status, health_condition_encoded, dietary_preference]],
+                           columns=['Age', 'Gender', 'Weight', 'Height', 'Weight Status', 'Health Condition', 'Dietary Preference'])
     
     # Make predictions
     diet_pred = nb_diet.predict(X_input)[0]
@@ -199,8 +199,7 @@ async def predict(user_input: UserInput):
             user_input.height,
             user_input.weight_status,
             user_input.health_condition,
-            user_input.dietary_preference,
-            user_input.daily_calories
+            user_input.dietary_preference
         )
         return {
             "Recommended Diet": diet,
@@ -230,3 +229,4 @@ async def get_options():
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
+
